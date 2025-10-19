@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Lua Interpreter - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body class="flex items-center justify-center h-screen bg-gray-100">
+    <div class="text-center"> 
+        <h1 class="text-4xl font-bold">Login</h1>
+
+        <form action="/login" method="POST" class="mt-12">
+            <div>
+                <input type="text" id="username" name="username" class="border p-2 w-64 mb-4 rounded" placeholder="Username" value="" autoFocus required>
+            </div>
+            
+            <div>
+                <input type="password" id="password" name="password" class="border p-2 w-64 mb-4 rounded" placeholder="Password" value="" required>
+            </div>
+            
+            <div>
+                <button type="submit" class="bg-blue-500 text-white p-2 rounded w-64 hover:bg-blue-600 transition">Login</button>
+            </div>            
+        </form>
+        
+        <% if (message) { %>
+            <div class="bg-red-100 text-white-700 p-4 rounded-lg mt-4">
+                <strong class="font-semibold"><%- message %></strong>
+            </div>
+        <% } %>
+    </div>
+</body>
+</html>

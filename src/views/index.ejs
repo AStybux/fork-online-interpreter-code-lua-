@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Lua Interpreter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #verticalDivider {
+      left: 50%;
+    }
+    .no-select {
+      user-select: none;
+    }
+    .raw-html * {
+      all: revert;
+    }
+    .runtime-inspector a {
+      color: #2563eb; /* Tailwind's blue-600 */
+      text-decoration: underline;
+    }
+  </style>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body class="h-screen flex flex-col bg-gray-100">
+
+  <!-- Header -->
+  <header class="bg-gray-900 text-white h-20 px-4 flex items-center justify-between">
+    <!-- Left Logo -->
+    <a href="https://redis.io/docs/latest/develop/programmability/eval-intro/" target="_blank" rel="noopener noreferrer">
+      <img src="/logo.png" alt="Logo Left" class="h-10 w-10 rounded-full"> <!-- MAIN -->
+    </a>
+  
+    <!-- Centered Title and Subtitle -->
+    <div class="text-center flex-1">
+      <h1 class="text-xl font-semibold cursor-pointer hover:text-yellow-300 transition"
+          onclick="window.location.href='/'" title="<%= resp ==='3'? 'RESP3 is enabled': ''  %>">
+        Online Lua Interpreter
+      </h1>
+      <p class="text-sm text-gray-300"><%= subtitle %></p>
+    </div>
+  
+    <!-- Right Logo
+    <a href="https://www.lua.org/docs.html" target="_blank" rel="noopener noreferrer">
+      <img src="/luaa.gif" alt="Logo Right" class="h-10 w-10 rounded-full">
+    </a> -->
+  </header>
+
+  <!-- Main Layout -->
+  <main class="flex-grow relative flex overflow-hidden">
+
+    <!-- Left Panel -->
+    <section id="editorPanel" class="flex flex-col w-1/2 p-4 overflow-auto bg-gray-900 space-y-2">
+      <form action="/" method="POST" class="flex flex-col space-y-2 flex-grow">
+        <input type="hidden" id="scriptNameHidden" name="nameHidden" value="<%= lastEdit %>" />
+
+        <!-- Parameters Section -->
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2">
+            <label for="keysInput" class="text-sm font-medium whitespace-nowrap text-white">KEYS :</label>
+            <input type="text" id="keysInput" name="keys" class="flex-grow p-1 border rounded text-sm" value="<%= keys %>" placeholder=""/>
+          </div>
+          <div class="flex items-center space-x-2">
+            <label for="argvInput" class="text-sm font-medium whitespace-nowrap text-white">ARGV:</label>
+            <input type="text" id="argvInput" name="argv" class="flex-grow p-1 border rounded text-sm" value="<%= argv %>" placeholder=""/>
+          </div>
+        </div>
+
+        <!-- Code Editor -->
+        <textarea id="code" name="code" class="flex-grow p-2 border rounded resize-none font-mono text-sm h-64" placeholder='return "Hello Lua"' autofocus required ><%= code %></textarea>
+
+        <!-- Action Buttons Row -->
+        <div class="flex justify-between items-center">
+          <div class="flex space-x-2">
+            <button type="submit" class="py-1 px-3 bg-blue-700 text-white rounded text-sm hover:bg-blue-700">Run</button>
+            <!-- <button type="button" id="resetBtn" class="py-1 px-3 bg-gray-300 rounded text-sm hover:bg-gray-400" >Reset</button> -->
+          </div>
+          <div>
+            <p class="text-sm text-gray-900 text-center text-white">
+              My Github account - <a href="https://github.com/AStybux" target="_blank" class="underline hover:text-blue-600">AStybux</a>
+            </p>
+      </form>
+    </section>
+
+    <!-- Vertical Divider -->
+    <div id="verticalDivider"
+         class="w-1 bg-gray-400 cursor-col-resize absolute top-0 bottom-0 z-10 no-select">
+    </div>
+
+    <!-- Right Panel -->
+    <section id="outputPanel" class="flex flex-col w-1/2 p-4 overflow-auto bg-gray-900 space-y-2">
+
+      <!-- Script Toolbar -->
+      <div class="flex items-center space-x-2">
+        <select name="scriptSelect" id="scriptSelect" class="border rounded px-2 py-1 flex-grow text-sm">
+          <option value="">Select</option>
+          <% scripts.forEach(script => { %>
+            <option value="<%= script %>" <%= script === lastEdit ? 'selected' : '' %>><%= script %></option>
+          <% }) %>
+        </select>
+
+        <input type="text" name="scriptName" id="scriptName" value="<%= lastEdit %>" placeholder="Script Name" class="border rounded px-2 py-1 flex-grow text-sm w-24" />
+
+        <button type="button" id="loadBtn" class="px-3 py-1 bg-gray-300 rounded text-sm hover:bg-gray-400">Load</button>
+
+        <% if(auth) {  %> 
+          <button type="button" id="saveBtn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">Save</button>
+          <button type="button" id="deleteBtn" class="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">Delete</button>
+        <% } %>
+
+      </div>
+
+    <!-- Output Section -->
+    <!-- Full-page container -->
+    <div class="h-screen flex flex-col">
+
+      <!-- Output section grows with content -->
+      <div class="flex flex-col p-1 space-y-2">
+
+        <!-- Multi-format support -->
+        <% if (lastEdit.endsWith('.lua')) { %> 
+          <!-- Output Label -->
+          <h2 class="text-sm font-semibold text-white">Output:</h2>
+
+          <!-- Expanding Output Block (red on error) -->
+          <pre id="output" class="bg-white p-3 border rounded font-mono text-sm text-left whitespace-pre-wrap w-full 
+            <%= output.toString().startsWith('Error: ERR') ? 'text-red-700' : '' %>"><%- output %></pre>
+          <% } else { %>  
+            <div id="outputMD" class="raw-html">
+              <% if (previewUrl) { %>
+                <div style="text-align: right; font-size: 0.8rem;">
+                  <a href="<%= previewUrl %>" target="_blank" rel="noopener noreferrer">
+                    open in fullscreen
+                  </a>
+                </div>  
+              <% } %>  
+              <%- output %>            
+            </div> 
+        <% } %>  
+
+        <div id="consoleMeta" class="mt-2 text-xs text-white font-mono">
+          <% if (meta.time) { %>
+            Executed in <%= meta.time %><br>
+            Timestamp: <%= new Date(new Date(meta.timestamp).getTime() + 8 * 3600000).toISOString().replace('T', ' ').slice(0, 19).replace(/-/g, '/') %>
+            <div class="mt-2">
+              <button onclick="copyOutput()" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 hover:font-bold text-white rounded-full text-xs w-28">
+                Copy Output
+              </button>
+          </div>
+          <% } %>
+        </div>
+
+        <div class="mt-2">
+          <button onclick="toggleRuntimeInspector()" class="px-3 py-1 bg-cyan-700 hover:bg-cyan-800 hover:font-bold text-white rounded-full text-xs w-40">Runtime Inspector</button>
+          <div id="runtimeInspector" class="runtime-inspector hidden mt-2 p-2 border rounded bg-gray-100 font-mono text-sm">
+          </div>
+        </div>
+  
+      </div>
+    </div>
+
+  </main>
+
+  <script>    
+    // ✅ Updated Script with Cookie Persistence
+    const divider = document.getElementById('verticalDivider');
+    const editorPanel = document.getElementById('editorPanel');
+    const outputPanel = document.getElementById('outputPanel');
+    const COOKIE_SPLITTER_NAME = "OLI_splitterPosition"
+
+    // 🧠 Cookie Helpers
+    function setCookie(name, value, days = 365) {
+      const expires = new Date(Date.now() + days * 864e5).toUTCString();
+      document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+    }
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+
+    function deleteCookie(name) {
+      // For development environment 
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+
+      // For production environment, must specify domain to delete cookie!!!
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=lua-interpreter.onrender.com`;
+    }
+
+    // 🪄 Apply saved position on load
+    const savedPos = getCookie(COOKIE_SPLITTER_NAME);
+    if (savedPos !== null) {
+      const leftWidth = parseFloat(savedPos);
+      editorPanel.style.width = `${leftWidth}%`;
+      outputPanel.style.width = `${100 - leftWidth}%`;
+      divider.style.left = `${leftWidth}%`;
+    }
+
+    // 🖱️ Drag Logic
+    divider.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      document.addEventListener('mousemove', resizePanels);
+      document.addEventListener('mouseup', stopResize);
+    });
+
+    function resizePanels(e) {
+      const totalWidth = divider.parentElement.offsetWidth;
+      const newLeftWidth = e.clientX / totalWidth * 100;
+      editorPanel.style.width = `${newLeftWidth}%`;
+      outputPanel.style.width = `${100 - newLeftWidth}%`;
+      divider.style.left = `${newLeftWidth}%`;
+    }
+
+    function stopResize() {
+      document.removeEventListener('mousemove', resizePanels);
+      document.removeEventListener('mouseup', stopResize);
+      const leftWidth = parseFloat(editorPanel.style.width);
+      setCookie(COOKIE_SPLITTER_NAME, leftWidth);
+    }
+
+    // Tab support in textarea
+    document.getElementById('code').addEventListener('keydown', function(e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + '\t' + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 1;
+      }
+    });
+
+    // All controls used
+    const keys = document.getElementById('keysInput');
+    const argv = document.getElementById('argvInput');
+    const editor = document.getElementById('code');
+
+    const dropdown = document.getElementById('scriptSelect');
+    const scriptNameInput = document.getElementById('scriptName');
+    const scriptNameHidden = document.getElementById('scriptNameHidden');
+    
+    const loadBtn = document.getElementById('loadBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const output = document.getElementById('output');
+    const outputMD = document.getElementById('outputMD');
+
+    // ✅ JavaScript: Drag-and-Drop File Loader
+    // 🛡️ Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      editor.addEventListener(eventName, e => e.preventDefault());
+    });
+
+    // 🎯 Highlight on drag
+    editor.addEventListener('dragover', () => {
+      editor.classList.add('border-blue-500');
+    });
+    editor.addEventListener('dragleave', () => {
+      editor.classList.remove('border-blue-500');
+    });
+
+    // 📦 Handle file drop
+    editor.addEventListener('drop', e => {
+      editor.classList.remove('border-blue-500');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        editor.value = event.target.result;
+        scriptNameInput.value = file.name;
+        scriptNameHidden.value = file.name;
+      };
+      reader.readAsText(file);
+    });
+
+    // Handle dropdown change 
+    document.addEventListener('DOMContentLoaded', () => {
+      if (dropdown && scriptNameInput) {
+        dropdown.addEventListener('change', () => {
+          scriptNameInput.value = dropdown.value;
+          scriptNameHidden.value = dropdown.value;
+          loadBtn.focus()
+          console.log(`scriptName has been changed to ${dropdown.value}`)
+        });
+      } else {
+        console.log('Dropdown or textbox not found');
+      }
+    });
+
+    function outputMessage(message) {    
+      if (output) {
+        output.textContent = message;
+      } else if (outputMD) {
+        outputMD.textContent = message;
+      } else {
+        alert(message)
+      }
+    }
+
+  // Handle load script 
+  document.addEventListener('DOMContentLoaded', () => {
+    loadBtn.addEventListener('click', async () => {
+        const scriptName = scriptNameInput.value.trim();
+
+        if (!scriptName) { 
+          return alert('Script name is empty')
+        };
+
+        try {
+          const res = await fetch(`/api/v1/load?name=${encodeURIComponent(scriptName)}`);
+          const result = await res.json();
+
+          if (result.success) {
+            editor.value = result.code; // for <textarea>
+            
+            // Multi-format support            
+            outputMessage(result.message)
+
+            scriptNameHidden.value = scriptName;
+            clearConsoleMeta()
+            editor.focus();            
+          } else {
+            alert(result.message || 'Failed to load script');
+          }
+        } catch (err) {
+          console.error('Error loading script', err);
+          outputMessage('Error loading script');
+        }
+      });
+    });
+
+  // Handle save script 
+  if (saveBtn) {
+    document.addEventListener('DOMContentLoaded', () => {
+    saveBtn.addEventListener('click', async (e) => {
+      const scriptName = scriptNameInput.value.trim();
+      const code = editor.value.trim();
+
+      if (!scriptName || !code) {
+        return alert('Script name and/or code must not be empty');
+      }
+
+      try {
+        const res = await fetch('/api/v1/save', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: scriptName, code })
+        });
+
+        const result = await res.json();
+        // Multi-format support
+        outputMessage(result.message)        
+
+        scriptNameHidden.value = scriptName;
+        clearConsoleMeta()
+        editor.focus();
+        } catch (err) {
+          console.error('Save error:', err);
+          outputMessage('Error saving script')
+        }
+      });
+    });
+  }
+
+  // Handle delete script 
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async (e) => {
+    const scriptName = scriptNameInput.value.trim();
+
+    if (!scriptName) {
+      return alert('Script name must not be empty')
+    }
+
+    const confirmed = confirm(`Are you sure you want to delete "${scriptName}"?`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/v1/delete?name=${encodeURIComponent(scriptName)}`, {
+        method: 'DELETE'
+      });
+
+      const result = await res.json();
+      //output.textContent = result.message || 'Delete response received';
+      // Multi-format support
+      outputMessage(result.message || 'Delete response received') 
+      clearConsoleMeta()
+      editor.focus();
+    } catch (err) {
+        console.error('Delete error:', err);
+        outputMessage('Error deleting script');
+      }
+    });
+  }
+
+  // Handle reset script
+  resetBtn.addEventListener('click', async (e) => {
+    keys.value = '';
+    argv.value = '';
+    editor.value = ''; 
+    scriptNameInput.value = 'noname.lua';
+    scriptNameHidden.value = 'noname.lua';
+    editor.focus();
+    deleteCookie(COOKIE_SPLITTER_NAME)
+    clearConsoleMeta()
+  });    
+  const templateString = `--[[
+	Small script sets and retrieves a key atomically
+	Parameters: 
+		KEYS[1] = key to set, *foo" for example
+		ARGV[1] = value to set, "bar" for example
+]]
+-- Define the key and value
+local key = KEYS[1]
+local value = ARGV[1]
+
+-- Set the key
+redis.call("SET", key, value)
+
+-- Retrieve and return the value
+return redis.call("GET", key)
+`
+
+  // Handle scriptName changed
+  scriptNameInput.addEventListener('input', () => {
+    scriptNameHidden.value = scriptNameInput.value;
+  });
+  
+
+  function toggleRuntimeInspector() {
+    const viewer = document.getElementById('runtimeInspector');
+    viewer.classList.toggle('hidden');
+
+    if (!viewer.classList.contains('hidden')) {
+      fetch('/api/v1/runtime') // Your backend route
+        .then(res => res.json())
+        .then(data => {
+          viewer.innerHTML = data.map(line => `<pre>${line}</pre>`).join('');
+        });
+    }
+    }
+
+  function clearConsoleMeta() {
+    document.getElementById('consoleMeta').innerHTML = '';
+  }
+
+  function copyOutput() {
+    navigator.clipboard.writeText(output.innerText).then(() => {
+      console.log('Output copied to clipboard');
+    }).catch(err => {
+      console.error('Failed to copy output:', err);
+    });
+  }
+
+  </script>
+
+</body>
+</html>
