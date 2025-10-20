@@ -5,7 +5,7 @@ Online Lua Interpreter ── A web-based Lua script editor and executor using N
 
 # Starting this code
 
-<img width="1850" height="252" alt="image" src="https://github.com/user-attachments/assets/e99a688b-5f97-45ca-939e-1f23383f3e43" />
+<img width="1850" height="256" alt="image" src="https://github.com/user-attachments/assets/e99a688b-5f97-45ca-939e-1f23383f3e43" />
 
 #Code
 
@@ -14,3 +14,7 @@ Online Lua Interpreter ── A web-based Lua script editor and executor using N
 # Directories
 
 <img width="1850" height="1626" alt="image" src="https://github.com/user-attachments/assets/3eb251fc-1ba3-4f3d-8e54-4004fa3fd90b" />
+
+# Languages
+
+<img width="1850" height="556" alt="image" src="https://github.com/user-attachments/assets/0bd751c5-3f17-409f-95de-c7156b387410" />
